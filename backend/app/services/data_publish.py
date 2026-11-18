@@ -123,3 +123,7 @@ class DataPublishService:
                     "rows": store.table_rows(row.get("输出表名", "")),
                 }
         return None
+
+    def get_audit_snapshots(self, dataset: str | None = None) -> list[dict[str, Any]]:
+        """数据发布侧读取跨模块持久化的分级稽核结果表快照。"""
+        return store.get_publish_audit_snapshots(dataset=dataset)

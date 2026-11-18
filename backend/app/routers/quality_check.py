@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import csv
 import io
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.schemas import ActionPayload, ActionResult, EntryPayload, PageResult
 from app.services.quality_check import QualityCheckService
+from app.tenancy import PermissionDeniedError, RequestContext, get_context
 
 router = APIRouter(prefix="/api/quality_check", tags=["质量稽核"])
 
@@ -93,7 +95,13 @@ def run_action(entry_id: int, payload: ActionPayload) -> ActionResult:
 
 
 @router.post("/{entry_id}/execute")
-def execute_check(entry_id: int) -> dict[str, Any]:
-    """执行稽核规则：读取目标表数据，运行校验表达式。"""
-    result = service.execute_check(entry_id)
-    return result
+def execute_check(entry_id: int, ctx: RequestContext = Depends(get_context)) -> dict[str, Any]:
+    """执行稽核规则：按租户归属读取目标表数据，抽样后运行校验表达式。
+
+    无请求头时以默认租户管理员身份执行；归属或权限不满足时返回 403。
+    """
+    try:
+        return service.execute_check(entry_id, ctx)
+    except PermissionDeniedError as error:
+        raise HTTPException(status_code=403,
+                            detail={"message": error.message, "reason": error.reason}) from error

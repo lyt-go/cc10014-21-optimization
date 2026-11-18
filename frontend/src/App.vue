@@ -11,7 +11,35 @@
     <main class="app-main">
       <header class="app-head">
         <span class="head-desc">面向数据入库、清洗转换、分层建模、质量校验与血缘追踪的分层数仓治理平台。</span>
-        <span class="head-user">当前值班：{{ store.operator }} · {{ store.shiftLabel }}</span>
+        <div class="tenant-switcher" data-testid="tenant-switcher">
+          <label class="switch-item">
+            <span>租户</span>
+            <select
+              data-testid="tenant-select"
+              :value="store.tenantId"
+              @change="store.setTenant(($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="tenant in store.tenants" :key="tenant.id" :value="tenant.id">
+                {{ tenant.name }}{{ tenant.shared ? '（只读共享）' : '' }}
+              </option>
+            </select>
+          </label>
+          <label class="switch-item">
+            <span>角色</span>
+            <select
+              data-testid="role-select"
+              :value="store.roleCode"
+              @change="store.setRole(($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="role in store.roles" :key="role.code" :value="role.code">
+                {{ role.name }}
+              </option>
+            </select>
+          </label>
+          <span class="head-user" data-testid="current-identity">
+            {{ store.tenantName }} · {{ store.roleName }} · {{ store.operator }}
+          </span>
+        </div>
       </header>
       <RouterView />
     </main>
@@ -19,9 +47,35 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
+
 import { useSessionStore } from '@/stores/session'
 
 const store = useSessionStore()
 
-const navItems = [{ label: "运营概览", path: "/" }, { label: "原始入库", path: "/raw_ingest" }, { label: "字段映射", path: "/column_mapping" }, { label: "清洗策略", path: "/cleanse_rule" }, { label: "去重配置", path: "/dedup_config" }, { label: "贴源层管理", path: "/ods_layer" }, { label: "明细层管理", path: "/dwd_layer" }, { label: "汇总层管理", path: "/dws_layer" }, { label: "维度建模", path: "/dim_model" }, { label: "快照管理", path: "/snapshot_mgr" }, { label: "分区治理", path: "/partition_mgr" }, { label: "质量稽核", path: "/quality_check" }, { label: "血缘追踪", path: "/lineage_track" }, { label: "补数调度", path: "/backfill_job" }, { label: "表级比对", path: "/table_compare" }, { label: "结构注册", path: "/schema_registry" }, { label: "数据发布", path: "/data_publish" }, { label: "转换编排", path: "/transform_dag" }, { label: "冷热归档", path: "/cold_archive" }]
+const navItems = [{ label: "运营概览", path: "/" }, { label: "原始入库", path: "/raw_ingest" }, { label: "字段映射", path: "/column_mapping" }, { label: "清洗策略", path: "/cleanse_rule" }, { label: "去重配置", path: "/dedup_config" }, { label: "贴源层管理", path: "/ods_layer" }, { label: "明细层管理", path: "/dwd_layer" }, { label: "汇总层管理", path: "/dws_layer" }, { label: "维度建模", path: "/dim_model" }, { label: "快照管理", path: "/snapshot_mgr" }, { label: "分区治理", path: "/partition_mgr" }, { label: "质量稽核", path: "/quality_check" }, { label: "分级稽核结果表", path: "/audit_result" }, { label: "血缘追踪", path: "/lineage_track" }, { label: "补数调度", path: "/backfill_job" }, { label: "表级比对", path: "/table_compare" }, { label: "结构注册", path: "/schema_registry" }, { label: "数据发布", path: "/data_publish" }, { label: "转换编排", path: "/transform_dag" }, { label: "冷热归档", path: "/cold_archive" }]
+
+onMounted(() => {
+  void store.loadCatalog()
+})
 </script>
+
+<style scoped>
+.tenant-switcher {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.switch-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.switch-item select {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+</style>

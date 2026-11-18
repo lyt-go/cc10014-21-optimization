@@ -48,6 +48,9 @@
             >
               {{ action }}
             </button>
+            <button class="link" type="button" :data-testid="`detail-${row.id}`" @click="showDetail(row)">
+              关联信息
+            </button>
           </td>
         </tr>
         <tr v-if="!rows.length">
@@ -79,7 +82,7 @@
         <table class="data-table small">
           <thead><tr><th>批次编号</th><th>来源系统</th><th>文件格式</th><th>原始行数</th><th>入库时间</th></tr></thead>
           <tbody>
-            <tr v-for="b in relatedBatches" :key="b['批次编号']"><td>{{ b['批次编号'] }}</td><td>{{ b['来源系统'] }}</td><td>{{ b['文件格式'] }}</td><td>{{ b['原始行数'] }}</td><td>{{ b['入库时间'] }}</td></tr>
+            <tr v-for="b in relatedBatches" :key="String(b['批次编号'])"><td>{{ b['批次编号'] }}</td><td>{{ b['来源系统'] }}</td><td>{{ b['文件格式'] }}</td><td>{{ b['原始行数'] }}</td><td>{{ b['入库时间'] }}</td></tr>
             <tr v-if="!relatedBatches.length"><td colspan="5" class="empty-state">无关联批次</td></tr>
           </tbody>
         </table>
@@ -89,7 +92,7 @@
         <table class="data-table small">
           <thead><tr><th v-for="col in tableDataColumns" :key="col">{{ col }}</th></tr></thead>
           <tbody>
-            <tr v-for="(r, idx) in tableDataPreview" :key="idx"><td v-for="col in tableDataColumns" :key="col">{{ r[col] ?? '—' }}</td></tr>
+            <tr v-for="(r, idx) in tableDataPreview" :key="idx"><td v-for="col in tableDataColumns" :key="String(col)">{{ r[col] ?? '—' }}</td></tr>
             <tr v-if="!tableDataPreview.length"><td :colspan="tableDataColumns.length || 1" class="empty-state">暂无数据</td></tr>
           </tbody>
         </table>
@@ -119,11 +122,35 @@ const filterFields = columns.slice(0, 3)
 const showCreate = ref(false)
 const creating = ref(false)
 const createValues = ref<Record<string, string>>({})
+const selectedRow = ref<Row | null>(null)
+const relatedBatches = ref<Row[]>([])
+const tableDataPreview = ref<Row[]>([])
+const tableDataColumns = computed(() => {
+  const keys = new Set<string>()
+  tableDataPreview.value.slice(0, 5).forEach((row) => Object.keys(row).forEach((key) => keys.add(key)))
+  return [...keys]
+})
 const stats = computed(() => [
   { label: metricNames[0], value: total.value },
   { label: metricNames[1], value: rows.value.filter((row) => row.status === statuses[1]).length },
   { label: metricNames[2], value: rows.value.filter((row) => row.status === statuses[statuses.length - 1]).length },
 ])
+
+async function showDetail(row: Row) {
+  selectedRow.value = row
+  relatedBatches.value = []
+  tableDataPreview.value = []
+  try {
+    const [batchResp, dataResp] = await Promise.all([
+      request(`/api/ods_layer/${row.id}/batches`),
+      request(`/api/ods_layer/${row.id}/data`),
+    ])
+    if (batchResp.ok) relatedBatches.value = ((await batchResp.json()).items ?? []) as Row[]
+    if (dataResp.ok) tableDataPreview.value = (((await dataResp.json()).items ?? []) as Row[]).slice(0, 5)
+  } catch {
+    // 关联信息为辅助视图，接口缺失时保持空列表，不阻断主列表
+  }
+}
 
 function resetFilters() {
   filters.value = {}
